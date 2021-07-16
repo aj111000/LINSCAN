@@ -217,7 +217,7 @@ def generate_data(path):
 
 
 def swiss_roll():
-    points, coords = datasets.make_swiss_roll(n_samples=1500, noise=1.0, random_state=None)
+    points, coords = datasets.make_swiss_roll(n_samples=1000, noise=1, random_state=None)
     points = points[:, [0, 2]]
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -230,10 +230,12 @@ def swiss_roll():
 def crossing_lines():
     samples = 500
 
-    noises = np.random.normal(0, .02, size=[4, samples])
+    var = .02
+    noises = np.random.normal(0, var, size=[4, samples])
 
     line_1 = [[t / samples + noises[0, t], t / samples + noises[1, t]] for t in range(samples)]
-    line_2 = [[t / samples + noises[2, t] + .55, 1 - t / samples + noises[3, t] + .55] for t in range(samples)]
+    line_2 = [[t / samples + noises[2, t] + .5 + 2 * var, 1 - t / samples + noises[3, t] + .55 + 2 * var] for t in
+              range(samples)]
     return np.array(line_1 + line_2)
 
 
@@ -305,7 +307,7 @@ if __name__ == '__main__':
                 if cat == -1:
                     categories.append(cat)
                 else:
-                    categories.append(cat+start)
+                    categories.append(cat + start)
 
             plt.scatter(clust_dataset[:, 0], clust_dataset[:, 1], c=typelist, marker='.')
             plt.show()
