@@ -433,17 +433,19 @@ if __name__ == '__main__':
     # read data
     dataset = np.array(import_hs())
 
+    dataset -= dataset.mean(0)
+
     dataset /= np.max(np.abs(dataset))
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
-    # ax.set_aspect('equal', adjustable='box')
-    #
-    # plt.scatter(dataset[:, 0], dataset[:, 1], s=80, facecolors='none', edgecolors='b')
-    # plt.show()
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_aspect('equal', adjustable='box')
+
+    plt.scatter(dataset[:, 0], dataset[:, 1], s=80, facecolors='none', edgecolors='b')
+    plt.show()
 
     x_range = [-1, 1]
-    y_range = [-1, 0]
+    y_range = [-1, -.5]
 
     x_filt = lambda x: x_range[0] <= x <= x_range[1]
     y_filt = lambda y: y_range[0] <= y <= y_range[1]
