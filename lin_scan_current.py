@@ -462,9 +462,9 @@ if __name__ == '__main__':
     plt.scatter(dataset[:, 0], dataset[:, 1], marker='.')
     plt.show()
 
-    eps = np.sqrt(9)
+    eps = np.sqrt(10)
     min_pts = 10
-    threshold = .4
+    threshold = .3
     ecc_pts = 15
 
     multiplier = 1
