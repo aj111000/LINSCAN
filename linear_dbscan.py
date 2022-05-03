@@ -4,7 +4,7 @@ This is a simple implementation of DBSCAN intended to explain the algorithm.
 @author: Chris McCormick
 """
 
-import numpy as nnp
+import numpy as np
 from scipy.spatial import KDTree
 
 

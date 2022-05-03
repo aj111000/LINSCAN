@@ -6,6 +6,7 @@ from scipy.spatial import KDTree
 from sklearn.neighbors import BallTree
 # from scipy.linalg import sqrtm as sqrtm
 import sklearn.neighbors as neighbors
+from scipy.spatial.distance import jensenshannon
 
 from import_coordinates import import_test, import_hs
 
@@ -38,8 +39,7 @@ def kl_dist(x, y):
     inv2 = np.linalg.inv(cov2)
     p2 = np.array([y[0], y[1]])
 
-    return np.sqrt(
-        np.max([(p1 - p2).transpose() @ (inv1 + inv2) @ (p1 - p2) + np.trace(inv1 @ cov2 + inv2 @ cov1) - 4, 0]))
+    return np.max([(p1 - p2).transpose() @ (inv1 + inv2) @ (p1 - p2) + np.trace(inv1 @ cov2 + inv2 @ cov1) - 4, 0])
 
 
 def mmd_dist(x, y):
@@ -73,22 +73,19 @@ def mmd_dist(x, y):
     return MMD1 / (n * (n - 1)) - MMD2 / n ** 2 + MMD3 / (n * (n - 1))
 
 
-def was_wrapper(multiplier):
-    def was_dist(x, y):
-        # (x_1, x_2, s_11, s_12, s_22)
-        cov1 = np.array([[x[2], x[3]], [x[3], x[4]]])
-        p1 = np.array([x[0], x[1]])
-        sqrt1 = sqrtm(cov1)
+def was_dist(x, y):
+    # (x_1, x_2, s_11, s_12, s_22)
+    cov1 = np.array([[x[2], x[3]], [x[3], x[4]]])
+    p1 = np.array([x[0], x[1]])
+    sqrt1 = sqrtm(cov1)
 
-        cov2 = np.array([[y[2], y[3]], [y[3], y[4]]])
-        p2 = np.array([y[0], y[1]])
+    cov2 = np.array([[y[2], y[3]], [y[3], y[4]]])
+    p2 = np.array([y[0], y[1]])
 
-        temp_mat = sqrt1 @ cov2 @ sqrt1
+    temp_mat = sqrt1 @ cov2 @ sqrt1
 
-        return np.sqrt(
-            np.max([np.linalg.norm(p1 - p2) ** 2 + multiplier * np.trace(cov1 + cov2 - 2 * sqrtm(temp_mat)), 0]))
-
-    return was_dist
+    return np.sqrt(
+        np.max([np.linalg.norm(p1 - p2) ** 2 + np.trace(cov1 + cov2 - 2 * sqrtm(temp_mat)), 0]))
 
 
 def db_scan(dataset, eps, min_pts):
@@ -144,12 +141,12 @@ def kl_db_scan(dataset, eps, min_pts):
             categories[p] = current_cat
             while len(cluster) > 0:
                 p1 = cluster.pop(0)
+                categories[p1] = current_cat
 
                 if p1 in vPoints.unvisitedlist:
                     vPoints.visit(p1)
                     cluster1 = kd.query_radius(X=[dataset[p1]], r=eps)[0].tolist()
                     if len(cluster1) >= min_pts:
-                        categories[p1] = current_cat
                         cluster = cluster + cluster1
 
         if categories.count(current_cat) <= min_pts:
@@ -163,12 +160,12 @@ def kl_db_scan(dataset, eps, min_pts):
     return categories
 
 
-def was_db_scan(dataset, eps, min_pts, multiplier):
+def was_db_scan(dataset, eps, min_pts):
     nPoints = dataset.shape[0]
     vPoints = VisitList(nPoints)
     current_cat = -1
     categories = [-1 for i in range(nPoints)]
-    kd = BallTree(dataset, metric="pyfunc", func=was_wrapper(multiplier))
+    kd = BallTree(dataset, metric="pyfunc", func=was_dist)
 
     while vPoints.unvisitednum > 0:
         p = random.choice(vPoints.unvisitedlist)
@@ -260,6 +257,7 @@ def kl_embed_scan(dataset, eps, min_pts, ecc_pts):
     for p in range(len(dataset)):
         cluster = kd.query(x=dataset[p], k=ecc_pts)[1].tolist()
         cov = np.cov(np.array([dataset[k] for k in cluster]), rowvar=False)
+        # cov /= max(np.linalg.eig(cov)[0])
         mean = np.mean(np.array([dataset[k] for k in cluster]), axis=0)
 
         embeddings.append(np.concatenate([mean, [cov[0, 0], cov[0, 1], cov[1, 1]]]))
@@ -268,7 +266,9 @@ def kl_embed_scan(dataset, eps, min_pts, ecc_pts):
     return kl_db_scan(embeddings, eps, min_pts)
 
 
-def was_embed_scan(dataset, eps, min_pts, ecc_pts, multiplier):
+
+
+def was_embed_scan(dataset, eps, min_pts, ecc_pts):
     kd = KDTree(dataset)
 
     embeddings = []
@@ -280,7 +280,7 @@ def was_embed_scan(dataset, eps, min_pts, ecc_pts, multiplier):
         embeddings.append(np.concatenate([mean, [cov[0, 0], cov[0, 1], cov[1, 1]]]))
     embeddings = np.array(embeddings)
 
-    return was_db_scan(embeddings, eps, min_pts, multiplier)
+    return was_db_scan(embeddings, eps, min_pts)
 
 
 def mmd_embed_scan(dataset, eps, min_pts, ecc_pts):
@@ -437,15 +437,15 @@ if __name__ == '__main__':
 
     dataset /= np.max(np.abs(dataset))
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.set_aspect('equal', adjustable='box')
-
-    plt.scatter(dataset[:, 0], dataset[:, 1], s=80, facecolors='none', edgecolors='b')
-    plt.show()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111)
+    # ax.set_aspect('equal', adjustable='box')
+    #
+    # plt.scatter(dataset[:, 0], dataset[:, 1], marker='o', s=(2*72./fig.dpi)**2)
+    # plt.show()
 
     x_range = [-1, 1]
-    y_range = [-1, -.5]
+    y_range = [-1, 1]
 
     x_filt = lambda x: x_range[0] <= x <= x_range[1]
     y_filt = lambda y: y_range[0] <= y <= y_range[1]
@@ -459,13 +459,13 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     ax.set_aspect('equal', adjustable='box')
 
-    plt.scatter(dataset[:, 0], dataset[:, 1], marker='.')
+    plt.scatter(dataset[:, 0], dataset[:, 1], marker='o', s=(2*72./fig.dpi)**2)
     plt.show()
 
-    eps = np.sqrt(10)
+    eps = 8
     min_pts = 10
-    threshold = .3
-    ecc_pts = 15
+    threshold = .4
+    ecc_pts = 20
 
     multiplier = 1
 
@@ -475,7 +475,7 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     ax.set_aspect('equal', adjustable='box')
 
-    plt.scatter(dataset[:, 0], dataset[:, 1], c=typelist, marker='.')
+    plt.scatter(dataset[:, 0], dataset[:, 1], c=typelist, marker='o', s=(2*72./fig.dpi)**2)
 
     plt.show()
 
@@ -486,7 +486,7 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     ax.set_aspect('equal', adjustable='box')
 
-    plt.scatter(temp[:, 0], temp[:, 1], c=temp_list, marker='.')
+    plt.scatter(temp[:, 0], temp[:, 1], c=temp_list, marker='o', s=(2*72./fig.dpi)**2)
     plt.show()
 
     for cat in range(max(typelist)):
@@ -501,7 +501,7 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     ax.set_aspect('equal', adjustable='box')
 
-    plt.scatter(temp[:, 0], temp[:, 1], c=temp_list, marker='.')
+    plt.scatter(temp[:, 0], temp[:, 1], c=temp_list, marker='o', s=(2*72./fig.dpi)**2)
     plt.show()
 
     # clusters = set(temp_list)

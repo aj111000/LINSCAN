@@ -228,13 +228,13 @@ def swiss_roll():
 
 
 def crossing_lines():
-    samples = 500
+    samples = 1000
 
-    var = .02
+    var = .03
     noises = np.random.normal(0, var, size=[4, samples])
 
     line_1 = [[t / samples + noises[0, t], t / samples + noises[1, t]] for t in range(samples)]
-    line_2 = [[t / samples + noises[2, t] + .5 + 2 * var, 1 - t / samples + noises[3, t] + .55 + 2 * var] for t in
+    line_2 = [[t / samples + noises[2, t] + .5 + 2 * var, 1 - t / samples + noises[3, t] + .5 + 2 * var] for t in
               range(samples)]
     return np.array(line_1 + line_2)
 
@@ -270,13 +270,17 @@ def crossing_lines():
 
 if __name__ == '__main__':
     # read data
-    dataset = np.array(import_test())
+    dataset = np.array(crossing_lines())
 
-    dbscan = DBSCAN(eps=5)
+    dataset -= dataset.mean(0)
+
+    dataset /= np.max(np.abs(dataset))
+
+    dbscan = DBSCAN(eps=.03,min_samples=5)
     typelist = dbscan.fit_predict(dataset)
 
-    # plt.scatter(dataset[:, 0], dataset[:, 1], c=typelist, marker='.')
-    # plt.show()
+    plt.scatter(dataset[:, 0], dataset[:, 1], c=typelist, marker='.')
+    plt.show()
 
     clusters = []
 
@@ -284,13 +288,20 @@ if __name__ == '__main__':
         in_cluster = [pt for pt in range(len(dataset)) if typelist[pt] == i]
         clusters.append(in_cluster)
 
-    eps = 7
-    minpts = 5
+    eps = 3
+    minpts = 10
     threshold = .7
-    ecc_pts = 10
+    ecc_pts = 20
 
     categories = []
     sorted_dataset = None
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_aspect('equal', adjustable='box')
+
+    plt.scatter(dataset[:, 0], dataset[:, 1], c=typelist, marker='o', s=(2 * 72. / fig.dpi) ** 2)
+    plt.show()
 
     for cluster in clusters:
         clust_dataset = dataset[cluster]
