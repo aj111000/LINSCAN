@@ -29,17 +29,30 @@ def sqrtm(mat):
     return 1 / t * (mat + s * np.eye(2))
 
 
+def sqrtm2(A):
+    s = np.sqrt(A[0, 0] * A[1, 1] - A[0, 1] ** 2)
+    t = np.sqrt(A[0, 0] + A[1, 1] + 2 * s)
+    return 1 / t * (A + s * np.eye(2))
+
+
 def kl_dist(x, y):
     # (x_1, x_2, s_11, s_12, s_22)
     cov1 = np.array([[x[2], x[3]], [x[3], x[4]]])
-    inv1 = np.linalg.inv(cov1)
+    inv1 = 1 / (x[2] * x[4] - x[3] * x[3]) * np.array([[x[4], -x[3]], [-x[3], x[2]]])
+    invsqrt1 = sqrtm2(inv1)
     p1 = np.array([x[0], x[1]])
 
     cov2 = np.array([[y[2], y[3]], [y[3], y[4]]])
-    inv2 = np.linalg.inv(cov2)
+    inv2 = 1 / (y[2] * y[4] - y[3] * y[3]) * np.array([[y[4], -y[3]], [-y[3], y[2]]])
+    invsqrt2 = sqrtm2(inv2)
     p2 = np.array([y[0], y[1]])
 
-    return np.max([(p1 - p2).transpose() @ (inv1 + inv2) @ (p1 - p2) + np.trace(inv1 @ cov2 + inv2 @ cov1) - 4, 0])
+    dist = 1 / 2 * np.sqrt(np.linalg.norm(invsqrt2 @ cov1 @ invsqrt2 - np.eye(2), ord='fro')) \
+           + 1 / 2 * np.sqrt(np.linalg.norm(invsqrt1 @ cov2 @ invsqrt1 - np.eye(2), ord='fro')) \
+           + 1 / np.sqrt(2) * np.sqrt((p1 - p2).transpose() @ inv1 @ (p1 - p2)) \
+           + 1 / np.sqrt(2) * np.sqrt((p1 - p2).transpose() @ inv2 @ (p1 - p2))
+
+    return np.max([dist, 0])
 
 
 def mmd_dist(x, y):
@@ -47,7 +60,7 @@ def mmd_dist(x, y):
     c2 = []
 
     if len(x) != len(y):
-        raise "Not the same length"
+        raise Exception("Not the same length")
 
     for i in range(int(len(x) / 2)):
         c1.append(np.array([x[2 * (i - 1)], x[2 * i - 1]]))
@@ -266,8 +279,6 @@ def kl_embed_scan(dataset, eps, min_pts, ecc_pts):
     return kl_db_scan(embeddings, eps, min_pts)
 
 
-
-
 def was_embed_scan(dataset, eps, min_pts, ecc_pts):
     kd = KDTree(dataset)
 
@@ -445,7 +456,7 @@ if __name__ == '__main__':
     # plt.show()
 
     x_range = [-1, 1]
-    y_range = [-1, 1]
+    y_range = [-1, -.4]
 
     x_filt = lambda x: x_range[0] <= x <= x_range[1]
     y_filt = lambda y: y_range[0] <= y <= y_range[1]
@@ -459,12 +470,12 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     ax.set_aspect('equal', adjustable='box')
 
-    plt.scatter(dataset[:, 0], dataset[:, 1], marker='o', s=(2*72./fig.dpi)**2)
+    plt.scatter(dataset[:, 0], dataset[:, 1], marker='o', s=(2 * 72. / fig.dpi) ** 2)
     plt.show()
 
-    eps = 8
-    min_pts = 10
-    threshold = .4
+    eps = np.sqrt(25)
+    min_pts = 35
+    threshold = .5
     ecc_pts = 20
 
     multiplier = 1
@@ -475,7 +486,7 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     ax.set_aspect('equal', adjustable='box')
 
-    plt.scatter(dataset[:, 0], dataset[:, 1], c=typelist, marker='o', s=(2*72./fig.dpi)**2)
+    plt.scatter(dataset[:, 0], dataset[:, 1], c=typelist, marker='o', s=(2 * 72. / fig.dpi) ** 2)
 
     plt.show()
 
@@ -486,7 +497,7 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     ax.set_aspect('equal', adjustable='box')
 
-    plt.scatter(temp[:, 0], temp[:, 1], c=temp_list, marker='o', s=(2*72./fig.dpi)**2)
+    plt.scatter(temp[:, 0], temp[:, 1], c=temp_list, marker='o', s=(2 * 72. / fig.dpi) ** 2)
     plt.show()
 
     for cat in range(max(typelist)):
@@ -501,7 +512,7 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     ax.set_aspect('equal', adjustable='box')
 
-    plt.scatter(temp[:, 0], temp[:, 1], c=temp_list, marker='o', s=(2*72./fig.dpi)**2)
+    plt.scatter(temp[:, 0], temp[:, 1], c=temp_list, marker='o', s=(2 * 72. / fig.dpi) ** 2)
     plt.show()
 
     # clusters = set(temp_list)
