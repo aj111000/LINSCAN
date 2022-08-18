@@ -502,6 +502,8 @@ if __name__ == '__main__':
 
     for cat in range(max(typelist)):
         temp = np.array([dataset[i, :] for i in range(len(dataset)) if typelist[i] == cat])
+        if temp.size == 0:
+            continue
         if np.abs(np.corrcoef(temp, rowvar=False)[0, 1]) < threshold:
             typelist = list(map(lambda x: -1 if x == cat else x, typelist))
 
