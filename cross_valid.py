@@ -37,7 +37,7 @@ if __name__ == '__main__':
     N = 1
     M = 1
 
-    trials = 1
+    trials = 4
 
     # Generate Samples
     temp = [gen_data(lin_clusts=6, iso_clusts=3) for i in range(N)]
@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     gen_rand = lambda range: random.uniform(low=range[0], high=range[1])
 
-    with Pool(processes=1) as pool:
+    with Pool(processes=min(trials, cpu_count())) as pool:
         scores = pool.map(func=run_trials,
                           iterable=param_generator(train_datasets,
                                                    train_labels,

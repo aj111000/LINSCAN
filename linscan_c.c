@@ -1,10 +1,45 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <assert.h>
+
+static __thread double * double_buffer;
+static __thread int remaining_double_count = 0;
+static __thread double ** pointer_buffer;
+static __thread int remaining_pointer_count = 0;
+
+
+void init_double_buffer(double * buffer, int size){
+    double_buffer = buffer;
+    remaining_double_count = size;
+}
+
+void init_pointer_buffer(double ** buffer, int size){
+    pointer_buffer = buffer;
+    remaining_pointer_count = size;
+}
+
+double * custom_double_alloc(int count){
+    assert (remaining_double_count >= count);
+    remaining_double_count -= count;
+    double * out = double_buffer;
+    double_buffer += count;
+    return out;
+}
+
+double ** custom_pointer_alloc(int count){
+    assert (remaining_pointer_count >= count);
+    remaining_pointer_count -= count;
+    double ** out = pointer_buffer;
+    pointer_buffer += count;
+    return out;
+}
 
 double **create_array(int m, int n){
-    double* values = calloc(m*n, sizeof(double));
-    double** rows = malloc(m*sizeof(double*));
+//    double* values = calloc(m*n, sizeof(double));
+    double* values = custom_double_alloc(m*n);
+//    double** rows = malloc(m*sizeof(double*));
+    double** rows = custom_pointer_alloc(m);
     for (int i=0; i<m; ++i)
     {
         rows[i] = values + i*n;
@@ -12,18 +47,18 @@ double **create_array(int m, int n){
     return rows;
 }
 
-double **initialize_array(double ** loc, double inputs[], int m, int n){
+void initialize_array(double ** loc, double inputs[], int m, int n){
     for(int i = 0; i < m ; ++i)
         for(int j = 0; j < n; ++j)
             loc[i][j] = inputs[j*m+i];
 }
 
-double **free_array(double ** loc, int m){
-    for (int i=0; i<m; ++i){
-        free(loc[i]);
-    }
-    free(loc);
-}
+//void free_array(double ** loc, int m){
+//    for (int i=0; i<m; ++i){
+//        free(loc[i]);
+//    }
+//    free(loc);
+//}
 
 double fro_norm(double **mat, int n){
     double out = 0;
@@ -68,6 +103,13 @@ double ** transpose(double ** mat, int m, int n){
 }
 
 double kl_dist(double x[11], double y[11]){
+    double d_buffer[64];
+    double * p_buffer[64];
+
+    init_double_buffer(d_buffer, sizeof(d_buffer));
+    init_pointer_buffer(p_buffer, sizeof(p_buffer));
+
+
     double **diff = create_array(2,1);
     initialize_array(diff, (double[2]){x[0]-y[0], x[1]-y[1]}, 2, 1);
 
@@ -99,21 +141,8 @@ double kl_dist(double x[11], double y[11]){
     double C = 1/sqrt(2) * sqrt(mat_mult(mat_mult(transpose(diff, 2, 1), inv1, 1, 2, 2), diff, 1, 2, 1)[0][0]);
     double D = 1/sqrt(2) * sqrt(mat_mult(mat_mult(transpose(diff, 2, 1), inv2, 1, 2, 2), diff, 1, 2, 1)[0][0]);
 
-    free_array(diff,2);
-    free_array(cov1,2);
-    free_array(inv1,2);
-    free_array(inv_sqrt1,2);
-    free_array(cov2,2);
-    free_array(inv2,2);
-    free_array(inv_sqrt2,2);
-    free_array(I,2);
-    return A+B+C+D;
-}
 
-double ** distance_matrix(double ** dataset, int n){
-    double ** distances = create_array(n,n);
-    for(int i = 0; i < n ; ++i)
-        for(int j = i+1; j < n; ++j)
+    return A+B+C+D;
 }
 
 int main() {
@@ -131,4 +160,6 @@ int main() {
 
 /*
 gcc -fPIC -shared -o C:\Users\anaki\Documents\GitHub\LINSCAN\linscan_c.so C:\Users\anaki\Documents\GitHub\LINSCAN\linscan_c.c
+
+gcc -fPIC -shared -o /Users/andrew/PycharmProjects/ADCN/linscan_c.so /Users/andrew/PycharmProjects/ADCN/linscan_c.c
 */

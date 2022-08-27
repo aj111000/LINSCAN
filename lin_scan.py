@@ -54,7 +54,9 @@ def gen_c_kl_dist(eps):
     array = ctypes.c_double * 11
     convert = lambda A, B: (array(*A.tolist()), array(*B.tolist()))
 
-    so_file = "C:\\Users\\anaki\\Documents\\GitHub\\LINSCAN\\kl_dist.so"
+    # so_file = "C:\\Users\\anaki\\Documents\\GitHub\\LINSCAN\\linscan_c.so"
+    so_file = "/Users/andrew/PycharmProjects/ADCN/linscan_c.so"
+
     kl_dist = ctypes.CDLL(so_file).kl_dist
     kl_dist.restype = ctypes.c_double
 
