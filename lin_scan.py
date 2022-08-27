@@ -11,30 +11,55 @@ from scipy.spatial.distance import jensenshannon
 from sklearn.cluster import OPTICS
 
 from import_coordinates import import_test, import_hs
+import ctypes
+
+
+def pack_mat(mat):
+    return [mat[0, 0], mat[0, 1], mat[1, 1]]
+
+
+def unpack_embedding(x):
+    p = np.array([x[0], x[1]])
+    cov = np.array([[x[2], x[3]], [x[3], x[4]]])
+    inv = np.array([[x[5], x[6]], [x[6], x[7]]])
+    invsqrt = np.array([[x[8], x[9]], [x[9], x[10]]])
+    return p, cov, inv, invsqrt
+
 
 def sqrtm(mat):
     s = np.sqrt(mat[0, 0] * mat[1, 1] - mat[0, 1] * mat[1, 0])
     t = np.sqrt(mat[0, 0] + mat[1, 1] + 2 * s)
     return 1 / t * (mat + s * np.eye(2))
 
-def kl_dist(x, y):
-    # (x_1, x_2, s_11, s_12, s_22)
-    cov1 = np.array([[x[2], x[3]], [x[3], x[4]]])
-    inv1 = 1 / (x[2] * x[4] - x[3] * x[3]) * np.array([[x[4], -x[3]], [-x[3], x[2]]])
-    invsqrt1 = sqrtm(inv1)
-    p1 = np.array([x[0], x[1]])
 
-    cov2 = np.array([[y[2], y[3]], [y[3], y[4]]])
-    inv2 = 1 / (y[2] * y[4] - y[3] * y[3]) * np.array([[y[4], -y[3]], [-y[3], y[2]]])
-    invsqrt2 = sqrtm(inv2)
-    p2 = np.array([y[0], y[1]])
+def gen_kl_dist(eps):
+    def kl_dist(x, y):
+        p1, cov1, inv1, inv_sqrt1 = unpack_embedding(x)
+        p2, cov2, inv2, inv_sqrt2 = unpack_embedding(y)
 
-    dist = 1 / 2 * np.sqrt(np.linalg.norm(invsqrt2 @ cov1 @ invsqrt2 - np.eye(2), ord='fro')) \
-           + 1 / 2 * np.sqrt(np.linalg.norm(invsqrt1 @ cov2 @ invsqrt1 - np.eye(2), ord='fro')) \
-           + 1 / np.sqrt(2) * np.sqrt((p1 - p2).transpose() @ inv1 @ (p1 - p2)) \
-           + 1 / np.sqrt(2) * np.sqrt((p1 - p2).transpose() @ inv2 @ (p1 - p2))
+        if np.linalg.norm(p1 - p2) > eps:
+            return np.inf
 
-    return np.max([dist, 0])
+        dist = 1 / 2 * np.linalg.norm(inv_sqrt2 @ cov1 @ inv_sqrt2 - np.eye(2), ord='fro') \
+               + 1 / 2 * np.linalg.norm(inv_sqrt1 @ cov2 @ inv_sqrt1 - np.eye(2), ord='fro') \
+               + 1 / np.sqrt(2) * np.sqrt((p1 - p2).transpose() @ inv1 @ (p1 - p2)) \
+               + 1 / np.sqrt(2) * np.sqrt((p1 - p2).transpose() @ inv2 @ (p1 - p2))
+
+        return np.max([dist, 0])
+
+    return kl_dist
+
+
+def gen_c_kl_dist(eps):
+    array = ctypes.c_double * 11
+    convert = lambda A, B: (array(*A.tolist()), array(*B.tolist()))
+
+    so_file = "C:\\Users\\anaki\\Documents\\GitHub\\LINSCAN\\kl_dist.so"
+    kl_dist = ctypes.CDLL(so_file).kl_dist
+    kl_dist.restype = ctypes.c_double
+
+    dist_func = lambda x, y: kl_dist(*convert(x, y))
+    return dist_func
 
 
 def kl_embed_scan(dataset, eps, min_pts, ecc_pts, xi=.05):
@@ -46,15 +71,18 @@ def kl_embed_scan(dataset, eps, min_pts, ecc_pts, xi=.05):
         cov = np.cov(np.array([dataset[k] for k in cluster]), rowvar=False)
         cov /= max(np.linalg.eig(cov)[0])
         mean = np.mean(np.array([dataset[k] for k in cluster]), axis=0)
+        inv = 1 / (cov[0, 0] * cov[1, 1] - cov[0, 1] * cov[0, 1]) * \
+              np.array([[cov[1, 1], -cov[0, 1]], [-cov[0, 1], cov[0, 0]]])
+        inv_sqrt = sqrtm(inv)
 
-        embeddings.append(np.concatenate([mean, [cov[0, 0], cov[0, 1], cov[1, 1]]]))
+        embeddings.append(np.concatenate([mean, pack_mat(cov), pack_mat(inv), pack_mat(inv_sqrt)]))
     embeddings = np.array(embeddings)
 
-    return OPTICS(min_samples=min_pts, eps=eps, metric=kl_dist, cluster_method="xi", xi=xi).fit(embeddings)
+    return OPTICS(min_samples=min_pts, metric=gen_c_kl_dist(np.sqrt(2) * eps), cluster_method="xi", xi=xi).fit(
+        embeddings)
 
 
 def linscan(dataset, eps, min_pts, ecc_pts, threshold, xi):
-
     optics = kl_embed_scan(dataset, eps, min_pts, ecc_pts, xi)
 
     typelist = optics.labels_
@@ -67,6 +95,7 @@ def linscan(dataset, eps, min_pts, ecc_pts, threshold, xi):
             typelist = list(map(lambda x: -1 if x == cat else x, typelist))
 
     return typelist
+
 
 # if __name__ == '__main__':
 #     np.seterr(all='raise')

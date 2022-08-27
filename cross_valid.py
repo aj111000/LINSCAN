@@ -1,86 +1,102 @@
 from data_generation import gen_data
-from clust_scoring import cluster_accuracy
-from lin_scan import linscan
 import numpy as np
-import itertools as iter
-import matplotlib.pyplot as plt
+import numpy.random as random
+from multiprocessing import Pool, cpu_count
+
+from run_trials import run_trials
+import time
+import datetime
 
 
-def run_trials(inds, datasets, true_labels, eps, min_pts, ecc_pts, threshold, xi):
+def normalize_datasets(datasets):
+    for i in range(len(datasets)):
+        datasets[i] -= datasets[i].mean(0)
+
+        datasets[i] /= np.max(np.abs(datasets[i]))
+
+        filt = lambda pt: x_filt(pt[0]) and y_filt(pt[1])
+
+        datasets[i] = np.array(list(filter(filt, datasets[i].tolist())))
+        datasets[i] /= np.max(np.abs(datasets[i]), axis=0)
+    return datasets
+
+
+def param_generator(datasets, labels, eps_range, min_pts_range, threshold_range, ecc_pts_range, xi_range):
+    for _ in range(trials):
+        eps = gen_rand(eps_range)
+        min_pts = int(gen_rand(min_pts_range))
+        threshold = gen_rand(threshold_range)
+        ecc_pts = int(gen_rand(ecc_pts_range))
+        xi = gen_rand(xi_range)
+        yield datasets, labels, eps, min_pts, threshold, ecc_pts, xi
+
+
+if __name__ == '__main__':
+    st = time.time()
+    # Number of generated datasets and number of validation examples taken each time
+    N = 1
+    M = 1
+
+    trials = 1
+
+    # Generate Samples
+    temp = [gen_data(lin_clusts=6, iso_clusts=3) for i in range(N)]
+    train_datasets = [np.array(item[0]) for item in temp]
+    train_labels = [np.array(item[1]) for item in temp]
+
+    temp = [gen_data(lin_clusts=6, iso_clusts=3) for i in range(M)]
+    test_datasets = [np.array(item[0]) for item in temp]
+    test_labels = [np.array(item[1]) for item in temp]
+    del temp
+
+    # Normalize Datasets
+    x_range = [-1, 1]
+    y_range = [-1, 1]
+
+    x_filt = lambda x: x_range[0] <= x <= x_range[1]
+    y_filt = lambda y: y_range[0] <= y <= y_range[1]
+
+    train_datasets = normalize_datasets(train_datasets)
+    test_datasets = normalize_datasets(test_datasets)
+
+    # Iterations
+    eps_range = [.7, .7]
+    min_pts_range = [10, 80]
+    threshold_range = [.4, .4]
+    ecc_pts_range = [10, 80]
+    xi_range = [.02, .05]
+
     scores = []
-    for ind in inds:
-        dataset = datasets[ind]
-        true_label = true_labels[ind]
 
-        gen_label = linscan(dataset, eps, min_pts, ecc_pts, threshold, xi)
+    gen_rand = lambda range: random.uniform(low=range[0], high=range[1])
 
-        X = []
+    with Pool(processes=1) as pool:
+        scores = pool.map(func=run_trials,
+                          iterable=param_generator(train_datasets,
+                                                   train_labels,
+                                                   eps_range,
+                                                   min_pts_range,
+                                                   threshold_range,
+                                                   ecc_pts_range,
+                                                   xi_range))
 
-        for i in range(max(true_label) + 1):
-            X.append({idx for idx in range(len(true_label)) if true_label[idx] == i})
+    acc = lambda sample: [np.mean(sample[1]), np.mean(sample[2])]
 
-        Y = []
+    point_means = []
+    clust_means = []
 
-        for i in range(max(gen_label) + 1):
-            Y.append({idx for idx in range(len(gen_label)) if gen_label[idx] == i})
+    for samp in scores:
+        samp_point_mean, samp_clust_mean = acc(samp)
+        point_means.append(samp_point_mean)
+        clust_means.append(samp_clust_mean)
 
-        acc = cluster_accuracy(X, Y)
-        scores.append(acc)
+    idx = np.array(point_means).argmax()
 
-    return scores
+    [eps, min_pts, threshold, ecc_pts, xi] = scores[idx][0]
 
+    test_scores = run_trials([test_datasets, test_labels, eps, min_pts, threshold, ecc_pts, xi])
 
-# Number of generated datasets and number of validation examples taken each time
-N = 6
-k = 2
-
-# Generate Samples
-temp = [gen_data() for i in range(N)]
-datasets = [np.array(item[0]) for item in temp]
-true_labels = [np.array(item[1]) for item in temp]
-del temp
-
-# Normalize Datasets
-x_range = [-1, 1]
-y_range = [-1, 1]
-
-x_filt = lambda x: x_range[0] <= x <= x_range[1]
-y_filt = lambda y: y_range[0] <= y <= y_range[1]
-
-for i in range(N):
-    datasets[i] -= datasets[i].mean(0)
-
-    datasets[i] /= np.max(np.abs(datasets[i]))
-
-    filt = lambda pt: x_filt(pt[0]) and y_filt(pt[1])
-
-    datasets[i] = np.array(list(filter(filt, datasets[i].tolist())))
-    datasets[i] /= np.max(np.abs(datasets[i]), axis=0)
-
-# Iterations
-eps_list = [10]
-min_pts_list = [30, 70, 120]
-threshold_list = [.3, .6]
-ecc_pts_list = [30, 70, 120]
-xi_list = [.03, .05]
-
-val_idx = 0
-
-scores = []
-
-for [eps, min_pts, threshold, ecc_pts, xi] in iter.product(
-        eps_list, min_pts_list, threshold_list, ecc_pts_list, xi_list
-):
-    iter_scores = [[eps, min_pts, threshold, ecc_pts, xi]]
-
-    val_ind = [(val_idx + i) % N for i in range(k)]
-    train_ind = [(val_idx + k + i) % N for i in range(N - k)]
-
-    train_scores = run_trials(train_ind, datasets, true_labels, eps, min_pts, ecc_pts, threshold, xi)
-    val_scores = run_trials(val_ind, datasets, true_labels, eps, min_pts, ecc_pts, threshold, xi)
-
-    iter_scores += [train_scores, val_scores]
-
-    scores.append(iter_scores)
-
-    val_idx = (val_idx + k) % N
+    test_acc = acc(test_scores)
+    et = time.time()
+    elapsed = et - st
+    print("Execution time: ", datetime.timedelta(seconds=elapsed))

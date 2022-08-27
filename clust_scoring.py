@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 
-def cluster_accuracy(X, Y):
+def cluster_accuracy(X, Y, acc_threshold=.4):
     # X and Y are lists of sets corresponding to the points in each cluster
 
     C = []
@@ -17,4 +17,9 @@ def cluster_accuracy(X, Y):
 
     C = np.array(C)
     row_ind, col_ind = linear_sum_assignment(-C)
-    return C[row_ind, col_ind].sum() / min(len(X), len(Y))
+
+    point_acc = C[row_ind, col_ind].sum() / min(len(X), len(Y))
+
+    clust_acc = len([i for i in C[row_ind, col_ind].tolist() if i > acc_threshold])
+
+    return [point_acc, clust_acc]
