@@ -37,14 +37,16 @@ if __name__ == '__main__':
     N = 1
     M = 1
 
-    trials = 4
+    trials = 1
+
+    core_param = 1
 
     # Generate Samples
-    temp = [gen_data(lin_clusts=6, iso_clusts=3) for i in range(N)]
+    temp = [gen_data(lin_clusts=5, iso_clusts=6, int_clusts=5) for i in range(N)]
     train_datasets = [np.array(item[0]) for item in temp]
     train_labels = [np.array(item[1]) for item in temp]
 
-    temp = [gen_data(lin_clusts=6, iso_clusts=3) for i in range(M)]
+    temp = [gen_data(lin_clusts=5, iso_clusts=6, int_clusts=5) for i in range(M)]
     test_datasets = [np.array(item[0]) for item in temp]
     test_labels = [np.array(item[1]) for item in temp]
     del temp
@@ -70,7 +72,7 @@ if __name__ == '__main__':
 
     gen_rand = lambda range: random.uniform(low=range[0], high=range[1])
 
-    with Pool(processes=min(trials, cpu_count())) as pool:
+    with Pool(processes=min(trials, cpu_count(), core_param)) as pool:
         scores = pool.map(func=run_trials,
                           iterable=param_generator(train_datasets,
                                                    train_labels,
@@ -100,3 +102,6 @@ if __name__ == '__main__':
     et = time.time()
     elapsed = et - st
     print("Execution time: ", datetime.timedelta(seconds=elapsed))
+    print(scores[idx][0])
+    print([scores[idx][1], scores[idx][2]])
+    print(test_acc)
