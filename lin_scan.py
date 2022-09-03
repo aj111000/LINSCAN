@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import matplotlib.pyplot as plt
 import random
@@ -54,10 +56,7 @@ def gen_c_kl_dist(eps):
     array = ctypes.c_double * 11
     convert = lambda A, B: (array(*A.tolist()), array(*B.tolist()))
 
-    # so_file = "C:\\Users\\anaki\\Documents\\GitHub\\LINSCAN\\linscan_c.so"
-    so_file = "/Users/andrew/PycharmProjects/ADCN/linscan_c.so"
-
-    kl_dist = ctypes.CDLL(so_file).kl_dist
+    kl_dist = ctypes.CDLL('./linscan_c.so').kl_dist
     kl_dist.restype = ctypes.c_double
 
     dist_func = lambda x, y: kl_dist(*convert(x, y))

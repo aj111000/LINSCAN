@@ -34,10 +34,10 @@ def param_generator(datasets, labels, eps_range, min_pts_range, threshold_range,
 if __name__ == '__main__':
     st = time.time()
     # Number of generated datasets and number of validation examples taken each time
-    N = 1
-    M = 1
+    N = 10
+    M = 20
 
-    trials = 4
+    trials = 200
 
     # Generate Samples
     temp = [gen_data(lin_clusts=6, iso_clusts=3) for i in range(N)]

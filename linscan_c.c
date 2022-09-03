@@ -3,10 +3,10 @@
 #include <math.h>
 #include <assert.h>
 
-static __thread double * double_buffer;
-static __thread int remaining_double_count = 0;
-static __thread double ** pointer_buffer;
-static __thread int remaining_pointer_count = 0;
+static _Thread_local double * double_buffer;
+static _Thread_local int remaining_double_count = 0;
+static _Thread_local double ** pointer_buffer;
+static _Thread_local int remaining_pointer_count = 0;
 
 
 void init_double_buffer(double * buffer, int size){
