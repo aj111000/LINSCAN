@@ -41,7 +41,7 @@ if __name__ == '__main__':
     N = 10
     M = 40
 
-    trials = 400
+    trials = 1000
 
     core_param = multiprocessing.cpu_count() - 1
 
@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
     # Iterations
     eps_range = [.7, .7]
-    min_pts_range = [30, 80]
+    min_pts_range = [20, 80]
     threshold_range = [.2, .5]
     ecc_pts_range = [10, 40]
     xi_range = [.02, .06]
