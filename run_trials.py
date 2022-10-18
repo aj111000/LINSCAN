@@ -12,13 +12,13 @@ def run_trials(args):
 
         X = []
 
-        for i in range(max(true_label) + 1):
-            X.append({idx for idx in range(len(true_label)) if true_label[idx] == i})
+        for i in range(max(gen_label) + 1):
+            X.append({idx for idx in range(len(gen_label)) if gen_label[idx] == i})
 
         Y = []
 
-        for i in range(max(gen_label) + 1):
-            Y.append({idx for idx in range(len(gen_label)) if gen_label[idx] == i})
+        for i in range(max(true_label) + 1):
+            Y.append({idx for idx in range(len(true_label)) if true_label[idx] == i})
 
         point_acc, clust_acc = cluster_accuracy(X, Y)
         point_scores.append(point_acc)

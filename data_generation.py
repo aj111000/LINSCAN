@@ -33,7 +33,7 @@ def gen_data(lin_clusts=10,
             x = (subdiv_x + .5) * x_diff + x_min
             y = (subdiv_y + .5) * y_diff + y_min
             s = unif() * np.pi
-            length = rand.uniform(low=.3, high=1) * min(x_diff, y_diff) / 2.5 * len_mult + 1
+            length = rand.uniform(low=.5, high=1) * min(x_diff, y_diff) / 2.5 * len_mult + 1
             top_x = x + length * np.sin(s)
             bot_x = x - length * np.sin(s)
             top_y = y + length * np.cos(s)
@@ -71,15 +71,15 @@ def gen_data(lin_clusts=10,
             y = (subdiv_y + .5) * y_diff + y_min
             s = unif() * np.pi
 
-            int_angle = (random.uniform(.1, .9) + random.randint(0, 1)) * np.pi
+            int_angle = (random.uniform(.3, .7) + random.randint(0, 1)) * np.pi
 
-            length = rand.uniform(low=.3, high=1) * min(x_diff, y_diff) / 2.5 + 1
+            length = rand.uniform(low=.5, high=1) * min(x_diff, y_diff) / 2.5 + 1
             top_x = x + length * np.sin(s)
             bot_x = x - length * np.sin(s)
             top_y = y + length * np.cos(s)
             bot_y = y - length * np.cos(s)
 
-            sep_frac = random.uniform(.2, .4)
+            sep_frac = random.uniform(.3, .5)
 
             top_x_2 = x + (1+sep_frac)*length * np.sin(s + int_angle)
             bot_x_2 = x + sep_frac * length * np.sin(s + int_angle)
@@ -117,7 +117,7 @@ def gen_data(lin_clusts=10,
 
     subdivs_across = np.ceil(np.sqrt(lin_clusts + iso_clusts + int_clusts))
 
-    inds = list(range(int(subdivs_across ** 2)))
+    inds = list(range(lin_clusts + iso_clusts + int_clusts))
     data = []
     labels = []
 
@@ -126,7 +126,7 @@ def gen_data(lin_clusts=10,
     data = [*data, *lin_data]
     labels = [*labels, *lin_labels]
 
-    int_data, int_labels, inds = gen_int(int_clusts, int_num, int_R, inds, subdivs_across, max(labels))
+    int_data, int_labels, inds = gen_int(int_clusts, int_num, int_R, inds, subdivs_across, max(labels) + 1)
 
     data = [*data, *int_data]
     labels = [*labels, *int_labels]

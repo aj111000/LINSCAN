@@ -197,6 +197,4 @@ int main() {
 
 /*
 gcc -fPIC -shared -o C:\Users\anaki\Documents\GitHub\LINSCAN\linscan_c.so C:\Users\anaki\Documents\GitHub\LINSCAN\linscan_c.c
-
-gcc -fPIC -shared -o /Users/andrew/PycharmProjects/ADCN/linscan_c.so /Users/andrew/PycharmProjects/ADCN/linscan_c.c
 */
