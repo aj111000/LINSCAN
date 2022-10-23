@@ -79,7 +79,7 @@ def gen_data(lin_clusts=10,
             top_y = y + length * np.cos(s)
             bot_y = y - length * np.cos(s)
 
-            sep_frac = random.uniform(.3, .5)
+            sep_frac = random.uniform(.2, .4)
 
             top_x_2 = x + (1+sep_frac)*length * np.sin(s + int_angle)
             bot_x_2 = x + sep_frac * length * np.sin(s + int_angle)

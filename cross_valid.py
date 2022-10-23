@@ -41,16 +41,16 @@ if __name__ == '__main__':
     N = 10
     M = 40
 
-    trials = 1000
+    trials = 500
 
     core_param = multiprocessing.cpu_count() - 1
 
     # Generate Samples
-    temp = [gen_data(lin_clusts=3, iso_clusts=3, int_clusts=3) for i in range(N)]
+    temp = [gen_data(lin_clusts=10, iso_clusts=5, int_clusts=10) for i in range(N)]
     train_datasets = [np.array(item[0]) for item in temp]
     train_labels = [np.array(item[1]) for item in temp]
 
-    temp = [gen_data(lin_clusts=3, iso_clusts=3, int_clusts=3) for i in range(M)]
+    temp = [gen_data(lin_clusts=10, iso_clusts=5, int_clusts=10) for i in range(M)]
     test_datasets = [np.array(item[0]) for item in temp]
     test_labels = [np.array(item[1]) for item in temp]
     del temp
