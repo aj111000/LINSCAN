@@ -26,6 +26,8 @@ def normalize_datasets(datasets):
 
 
 def param_generator(datasets, labels, eps_range, min_pts_range, threshold_range, ecc_pts_range, xi_range):
+    gen_rand = lambda range: random.uniform(low=range[0], high=range[1])
+
     for i in range(trials):
         eps = gen_rand(eps_range)
         min_pts = int(gen_rand(min_pts_range))
@@ -43,7 +45,7 @@ if __name__ == '__main__':
 
     trials = 500
 
-    core_param = multiprocessing.cpu_count() - 1
+    core_param = np.infty
 
     # Generate Samples
     temp = [gen_data(lin_clusts=10, iso_clusts=5, int_clusts=10) for i in range(N)]
@@ -73,8 +75,6 @@ if __name__ == '__main__':
     xi_range = [.02, .06]
 
     scores = []
-
-    gen_rand = lambda range: random.uniform(low=range[0], high=range[1])
 
     with Pool(processes=min(trials, cpu_count(), core_param)) as pool:
         scores = pool.map(func=run_trials,
@@ -118,6 +118,8 @@ if __name__ == '__main__':
     xi_range = [.02, .06]
 
     optics_scores = []
+
+    gen_rand = lambda range: random.uniform(low=range[0], high=range[1])
 
     for _ in range(trials):
         point_scores = []
@@ -169,6 +171,9 @@ if __name__ == '__main__':
     optics_classifier = skl.cluster.OPTICS(min_samples=min_pts)
 
     optics_test_scores = []
+
+    point_scores = []
+    clust_scores = []
 
     for dataset, true_label in zip(test_datasets, test_labels):
         label = optics_classifier.fit_predict(dataset)

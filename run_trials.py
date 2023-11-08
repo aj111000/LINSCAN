@@ -24,4 +24,5 @@ def run_trials(args):
         point_scores.append(point_acc)
         clust_scores.append(clust_acc)
 
+    print("Done")
     return [[eps, min_pts, threshold, ecc_pts, xi], point_scores, clust_scores]
