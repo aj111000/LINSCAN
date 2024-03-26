@@ -9,8 +9,8 @@ from run_trials import run_trials
 import time
 import datetime
 import sklearn as skl
-from clust_scoring import cluster_accuracy
-
+# from clust_scoring import cluster_accuracy
+from sklearn import metrics
 
 def normalize_datasets(datasets):
     for i in range(len(datasets)):
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     trials = 500
 
-    core_param = np.infty
+    core_param = cpu_count()-1
 
     # Generate Samples
     temp = [gen_data(lin_clusts=10, iso_clusts=5, int_clusts=10) for i in range(N)]
@@ -69,10 +69,10 @@ if __name__ == '__main__':
 
     # Iterations
     eps_range = [.7, .7]
-    min_pts_range = [20, 80]
-    threshold_range = [.2, .5]
-    ecc_pts_range = [10, 40]
-    xi_range = [.02, .06]
+    min_pts_range = [10, 80]
+    threshold_range = [0, 1.0]
+    ecc_pts_range = [10, 60]
+    xi_range = [.015, .06]
 
     scores = []
 
@@ -86,44 +86,53 @@ if __name__ == '__main__':
                                                    ecc_pts_range,
                                                    xi_range))
 
-    acc = lambda sample: [np.mean(sample[1]), np.mean(sample[2])]
+    # acc = lambda sample: [np.mean(sample[1]), np.mean(sample[2])]
+    #
+    # point_means = []
+    # clust_means = []
+    #
+    # for samp in scores:
+    #     samp_point_mean, samp_clust_mean = acc(samp)
+    #     point_means.append(samp_point_mean)
+    #     clust_means.append(samp_clust_mean)
+    #
+    # idx = np.array(point_means).argmax()
 
-    point_means = []
-    clust_means = []
+    average_scores = [np.mean(samp[1]) for samp in scores]
 
-    for samp in scores:
-        samp_point_mean, samp_clust_mean = acc(samp)
-        point_means.append(samp_point_mean)
-        clust_means.append(samp_clust_mean)
-
-    idx = np.array(point_means).argmax()
+    idx = np.array(average_scores).argmax()
 
     [eps, min_pts, threshold, ecc_pts, xi] = scores[idx][0]
 
     test_scores = run_trials([test_datasets, test_labels, eps, min_pts, threshold, ecc_pts, xi])
 
-    test_acc = acc(test_scores)
+    # test_acc = acc(test_scores)
+
+    test_acc = np.mean(test_scores[1])
+
     et = time.time()
     elapsed = et - st
     print("Execution time: ", datetime.timedelta(seconds=elapsed))
     print("LINSCAN:\n")
     print(scores[idx][0])
-    print([scores[idx][1][0], scores[idx][2][0]])
+    # print([scores[idx][1][0], scores[idx][2][0]])
+    print(average_scores[idx])
     print(test_acc)
 
-
     # OPTICS
-    min_pts_range = [10, 100]
-    threshold_range = [.3, .6]
-    xi_range = [.02, .06]
+    # min_pts_range = [10, 100]
+    # threshold_range = [.01, .35]
+    # xi_range = [.02, .06]
 
     optics_scores = []
 
     gen_rand = lambda range: random.uniform(low=range[0], high=range[1])
 
     for _ in range(trials):
-        point_scores = []
-        clust_scores = []
+        # point_scores = []
+        # clust_scores = []
+        opt_scores = []
+
         min_pts = int(np.round(gen_rand(min_pts_range)))
         threshold = gen_rand(threshold_range)
         xi = gen_rand(xi_range)
@@ -137,34 +146,40 @@ if __name__ == '__main__':
                 temp = np.array([dataset[i, :] for i in range(len(dataset)) if label[i] == cat])
                 if temp.size == 0:
                     continue
-                if np.abs(np.corrcoef(temp, rowvar=False)[0, 1]) < threshold:
+
+                eigenvalues, eigenvectors = np.linalg.eig(np.cov(temp, rowvar=False))
+                if min(eigenvalues) / max(eigenvalues) > threshold:
                     label = list(map(lambda x: -1 if x == cat else x, label))
 
-            X = []
+            # X = []
+            #
+            # for i in range(max(label) + 1):
+            #     X.append({idx for idx in range(len(label)) if label[idx] == i})
+            #
+            # Y = []
+            #
+            # for i in range(max(true_label) + 1):
+            #     Y.append({idx for idx in range(len(true_label)) if true_label[idx] == i})
+            #
+            # point_acc, clust_acc = cluster_accuracy(X, Y)
+            # point_scores.append(point_acc)
+            # clust_scores.append(clust_acc)
+            opt_scores.append(metrics.adjusted_rand_score(label, true_label))
 
-            for i in range(max(label) + 1):
-                X.append({idx for idx in range(len(label)) if label[idx] == i})
+        optics_scores.append([[min_pts, threshold], opt_scores])
 
-            Y = []
+    # optics_point_means = []
+    # optics_clust_means = []
+    optics_average_scores = [np.mean(samp[1]) for samp in optics_scores]
 
-            for i in range(max(true_label) + 1):
-                Y.append({idx for idx in range(len(true_label)) if true_label[idx] == i})
+    # for samp in optics_scores:
+    #     samp_point_mean, samp_clust_mean = acc(samp)
+    #     optics_point_means.append(samp_point_mean)
+    #     optics_clust_means.append(samp_clust_mean)
+    #
+    # optics_idx = np.array(optics_point_means).argmax()
 
-            point_acc, clust_acc = cluster_accuracy(X, Y)
-            point_scores.append(point_acc)
-            clust_scores.append(clust_acc)
-
-        optics_scores.append([[min_pts, threshold], point_scores, clust_scores])
-
-    optics_point_means = []
-    optics_clust_means = []
-
-    for samp in optics_scores:
-        samp_point_mean, samp_clust_mean = acc(samp)
-        optics_point_means.append(samp_point_mean)
-        optics_clust_means.append(samp_clust_mean)
-
-    optics_idx = np.array(optics_point_means).argmax()
+    optics_idx = np.array(optics_average_scores).argmax()
 
     [min_pts, threshold] = optics_scores[optics_idx][0]
 
@@ -172,8 +187,9 @@ if __name__ == '__main__':
 
     optics_test_scores = []
 
-    point_scores = []
-    clust_scores = []
+    # point_scores = []
+    # clust_scores = []
+    opt_scores = []
 
     for dataset, true_label in zip(test_datasets, test_labels):
         label = optics_classifier.fit_predict(dataset)
@@ -182,27 +198,32 @@ if __name__ == '__main__':
             temp = np.array([dataset[i, :] for i in range(len(dataset)) if label[i] == cat])
             if temp.size == 0:
                 continue
-            if np.abs(np.corrcoef(temp, rowvar=False)[0, 1]) < threshold:
+
+            eigenvalues, eigenvectors = np.linalg.eig(np.cov(temp, rowvar=False))
+            if min(eigenvalues)/max(eigenvalues) > threshold:
                 label = list(map(lambda x: -1 if x == cat else x, label))
 
-        X = []
+        # X = []
+        #
+        # for i in range(max(label) + 1):
+        #     X.append({idx for idx in range(len(label)) if label[idx] == i})
+        #
+        # Y = []
+        #
+        # for i in range(max(true_label) + 1):
+        #     Y.append({idx for idx in range(len(true_label)) if true_label[idx] == i})
+        #
+        # point_acc, clust_acc = cluster_accuracy(X, Y)
+        # point_scores.append(point_acc)
+        # clust_scores.append(clust_acc)
+        opt_scores.append(metrics.adjusted_rand_score(label, true_label))
 
-        for i in range(max(label) + 1):
-            X.append({idx for idx in range(len(label)) if label[idx] == i})
+    # optics_test_scores = [[min_pts, threshold], point_scores, clust_scores]
+    optics_test_scores = [[min_pts, threshold], opt_scores]
 
-        Y = []
-
-        for i in range(max(true_label) + 1):
-            Y.append({idx for idx in range(len(true_label)) if true_label[idx] == i})
-
-        point_acc, clust_acc = cluster_accuracy(X, Y)
-        point_scores.append(point_acc)
-        clust_scores.append(clust_acc)
-
-    optics_test_scores = [[min_pts, threshold], point_scores, clust_scores]
-
-    optics_test_acc = acc(optics_test_scores)
+    optics_test_acc = np.mean(opt_scores)
     print("\nOptics:\n")
     print(optics_scores[optics_idx][0])
-    print([optics_scores[optics_idx][1][0], optics_scores[optics_idx][2][0]])
+    # print([optics_scores[optics_idx][1][0], optics_scores[optics_idx][2][0]])
+    print(optics_average_scores[optics_idx])
     print(optics_test_acc)

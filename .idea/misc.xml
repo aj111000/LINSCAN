@@ -3,7 +3,7 @@
   <component name="Black">
     <option name="executionMode" value="BINARY" />
     <option name="pathToExecutable" value="$USER_HOME$/anaconda3/bin/black" />
-    <option name="sdkUUID" value="746adbc7-c9c8-4f30-9bb4-538a6280a85f" />
+    <option name="sdkName" value="LINSCAN" />
   </component>
   <component name="JavaScriptSettings">
     <option name="languageLevel" value="ES6" />

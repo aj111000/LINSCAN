@@ -86,11 +86,11 @@ def kl_embed_scan(dataset, eps, min_pts, ecc_pts, xi=.05):
 def linscan(dataset, eps, min_pts, ecc_pts, threshold, xi):
     optics = kl_embed_scan(dataset, eps, min_pts, ecc_pts, xi)
 
-    perm = np.random.permutation(range(max(optics.labels_) + 2))
-    permuted_labels = np.array([perm[label] + 100 if label != -1 else label for label in optics.labels_])
+    # perm = np.random.permutation(range(max(optics.labels_) + 2))
+    # permuted_labels = np.array([perm[label] + 100 if label != -1 else label for label in optics.labels_])
 
-    plt.scatter(range(len(optics.reachability_)), optics.reachability_[optics.ordering_], c=permuted_labels[optics.ordering_], s=1)
-    plt.show()
+    # plt.scatter(range(len(optics.reachability_)), optics.reachability_[optics.ordering_], c=permuted_labels[optics.ordering_], s=1)
+    # plt.show()
 
     typelist = optics.labels_
 
@@ -98,7 +98,9 @@ def linscan(dataset, eps, min_pts, ecc_pts, threshold, xi):
         temp = np.array([dataset[i, :] for i in range(len(dataset)) if typelist[i] == cat])
         if temp.size == 0:
             continue
-        if np.linalg.cond(np.cov(temp), rowvar=False) > 1 / threshold:
+        eigenvalues, eigenvectors = np.linalg.eig(np.cov(temp, rowvar=False))
+
+        if min(eigenvalues) / max(eigenvalues) > threshold:
             typelist = list(map(lambda x: -1 if x == cat else x, typelist))
 
     return typelist

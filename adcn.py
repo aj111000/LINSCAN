@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import random
+from random import shuffle
+
 # import shapefile
 import math
 from scipy.spatial import KDTree
@@ -44,10 +45,10 @@ def calculate_sde(ptindex_array, eps):
     tempA = np.square(pt_trans)
     A = sum(tempA[:, 0]) - sum(tempA[:, 1])
     C = 2 * sum(pt_trans[:, 0] * pt_trans[:, 1])
-    B = (A ** 2 + C ** 2) ** 0.5
+    B = (A**2 + C**2) ** 0.5
 
-    if (C == 0):
-        if (-A + B == 0):
+    if C == 0:
+        if -A + B == 0:
             angle = 0
         else:
             angle = math.pi / 2
@@ -55,19 +56,31 @@ def calculate_sde(ptindex_array, eps):
         angle = math.atan((-A + B) / C)
 
     a_ori = math.sqrt(
-        sum(np.square(pt_trans[:, 1] * math.sin(angle) + pt_trans[:, 0] * math.cos(angle))) / len(pt_array))
+        sum(
+            np.square(
+                pt_trans[:, 1] * math.sin(angle) + pt_trans[:, 0] * math.cos(angle)
+            )
+        )
+        / len(pt_array)
+    )
     b_ori = math.sqrt(
-        sum(np.square(pt_trans[:, 1] * math.cos(angle) - pt_trans[:, 0] * math.sin(angle))) / len(pt_array))
+        sum(
+            np.square(
+                pt_trans[:, 1] * math.cos(angle) - pt_trans[:, 0] * math.sin(angle)
+            )
+        )
+        / len(pt_array)
+    )
 
     if a_ori * b_ori == 0:
         if a_ori > b_ori:
-            a_final = float('inf')
+            a_final = float("inf")
             b_final = 0
         else:
-            b_final = float('inf')
+            b_final = float("inf")
             a_final = 0
     else:
-        trans_indicator = math.sqrt(eps ** 2 / (a_ori * b_ori))
+        trans_indicator = math.sqrt(eps**2 / (a_ori * b_ori))
         if a_ori > b_ori:
             a_final = a_ori * trans_indicator
             b_final = b_ori * trans_indicator
@@ -84,20 +97,25 @@ def point_in_SDE(pt, SDE):
     [xi, yi] = SDE.mainpt
     if SDE.b == 0:
         if (yj - yi) * math.cos(SDE.angle) - (xj - xi) * math.sin(SDE.angle) == 0:
-            return 'in'
+            return "in"
         else:
-            return 'out'
+            return "out"
     elif dis_two_point(pt, SDE.mainpt) > SDE.a:
-        return 'out'
+        return "out"
     elif dis_two_point(pt, SDE.mainpt) <= SDE.b:
-        return 'in'
+        return "in"
     else:
-        temp = (((yj - yi) * math.sin(SDE.angle) + (xj - xi) * math.cos(SDE.angle)) ** 2 / SDE.a ** 2) + (
-                ((yj - yi) * math.cos(SDE.angle) - (xj - xi) * math.sin(SDE.angle)) ** 2 / SDE.b ** 2)
+        temp = (
+            ((yj - yi) * math.sin(SDE.angle) + (xj - xi) * math.cos(SDE.angle)) ** 2
+            / SDE.a**2
+        ) + (
+            ((yj - yi) * math.cos(SDE.angle) - (xj - xi) * math.sin(SDE.angle)) ** 2
+            / SDE.b**2
+        )
         if temp <= 1:
-            return 'in'
+            return "in"
         else:
-            return 'out'
+            return "out"
 
 
 def union(lst1, lst2):
@@ -116,7 +134,7 @@ def pts_in_SDE(pts_index, SDE):
     for ptindex in pts_index:
         pt = dataset[ptindex]
         tag = point_in_SDE(pt, SDE)
-        if tag == 'in':
+        if tag == "in":
             in_list.append(ptindex)
     return in_list
 
@@ -128,12 +146,15 @@ def adcn(dataset, eps, minPts, threshold):
     C = [-1 for i in range(nPoints)]
     kd = KDTree(dataset)
 
-    ecc = lambda x: np.sqrt(1 - (x.b ** 2) / (x.a ** 2))
+    ecc = lambda x: np.sqrt(1 - (x.b**2) / (x.a**2))
 
-    eccentricities = [ecc(calculate_sde(kd.query(dataset[i], k=minPts)[1], eps)) for i in vPoints.unvisitedlist]
+    eccentricities = [
+        ecc(calculate_sde(kd.query(dataset[i], k=minPts)[1], eps))
+        for i in vPoints.unvisitedlist
+    ]
 
     while vPoints.unvisitednum > 0:
-        print(vPoints.unvisitednum)
+        # print(vPoints.unvisitednum)
         p = np.argmax(eccentricities)
         vPoints.visit(p)
         N_index = kd.query(dataset[p], k=minPts)[1]
@@ -145,7 +166,10 @@ def adcn(dataset, eps, minPts, threshold):
             eccentricities[p] = 0
             k += 1
             C[p] = k
-            for p1 in pts_in_sden:
+            i = 0
+            while i < len(pts_in_sden):
+                p1 = pts_in_sden[i]
+                i += 1
                 if p1 in vPoints.unvisitedlist:
                     vPoints.visit(p1)
                     eccentricities[p1] = 0
@@ -159,15 +183,26 @@ def adcn(dataset, eps, minPts, threshold):
 
                     inv_cov = np.linalg.inv(np.cov(dataset[M_index], rowvar=False))
 
+                    inv_cov = inv_cov / np.linalg.norm(inv_cov, 2)
+
                     # sdem = calculate_sde(M_index, eps)
-                    may_in_sdem_ptlist = kd.query_ball_point(dataset[p1], eps * np.sqrt(np.linalg.norm(inv_cov, ord=2)))
+                    may_in_sdem_ptlist = kd.query_ball_point(
+                        dataset[p1], 10 * eps
+                    )
 
                     pts_in_sdem = []
                     mean = dataset[p]
-                    for i in may_in_sdem_ptlist:
-                        normalized = dataset[i] - mean
-                        if np.sqrt(np.transpose(normalized) @ inv_cov @ np.transpose(normalized)) < eps:
-                            pts_in_sdem.append(i)
+                    for mmmmm in may_in_sdem_ptlist:
+                        normalized = dataset[mmmmm] - mean
+                        if (
+                            np.sqrt(
+                                np.transpose(normalized)
+                                @ inv_cov
+                                @ normalized
+                            )
+                            < eps
+                        ):
+                            pts_in_sdem.append(mmmmm)
 
                     _, pca = np.linalg.eigh(inv_cov)
 
@@ -175,26 +210,31 @@ def adcn(dataset, eps, minPts, threshold):
                     pca = pca / np.linalg.norm(pca)
 
                     if len(pts_in_sdem) >= minPts:
-                        for i in pts_in_sdem:
-                            L = np.cov(dataset[kd.query(dataset[i], k=minPts)[1]], rowvar=False)
+                        for t1 in pts_in_sdem:
+                            L = np.cov(
+                                dataset[kd.query(dataset[t1], k=minPts)[1]], rowvar=False
+                            )
                             L_inv = np.linalg.inv(L)
                             _, temp_pca = np.linalg.eigh(L_inv)
                             temp_pca = temp_pca[0]
                             temp_pca = temp_pca / np.linalg.norm(temp_pca)
-                            if i not in pts_in_sden and \
-                                    np.abs(np.dot(temp_pca, pca)) >= threshold and \
-                                    np.sqrt(np.transpose(pca) @ L @ pca) / np.linalg.norm(L, ord=2) > threshold:
-
-                                pts_in_sden.append(i)
+                            if (
+                                t1 not in pts_in_sden
+                                and np.abs(np.dot(temp_pca, pca)) >= threshold
+                                and np.sqrt(np.transpose(pca) @ L @ pca)
+                                / np.linalg.norm(L, ord=2)
+                                >= threshold
+                            ):
+                                pts_in_sden.append(t1)
                     if C[p1] == -1:
                         C[p1] = k
             if C.count(k) == 1:
                 C[p] = -1
-            elif vPoints.unvisitednum < 8/4 * dataset.shape[0]:
-                plt.plot(dataset[p, 0], dataset[p, 1], marker='+')
-                plt.scatter(dataset[:, 0], dataset[:, 1], c=C, marker='.')
-                plt.show()
-                input("Press Enter to continue")
+            # elif vPoints.unvisitednum < 8/4 * dataset.shape[0]:
+            #     plt.plot(dataset[p, 0], dataset[p, 1], marker='+')
+            #     plt.scatter(dataset[:, 0], dataset[:, 1], c=C, marker='.')
+            #     plt.show()
+            # input("Press Enter to continue")
 
         else:
             eccentricities[p] = 0
@@ -203,10 +243,10 @@ def adcn(dataset, eps, minPts, threshold):
 
 
 def generate_data(path):
-    fw = open(path, 'r')
+    fw = open(path, "r")
     pt_array = []
     for line in fw:
-        pt = [float(line.split(',')[3]), float(line.split(',')[4])]
+        pt = [float(line.split(",")[3]), float(line.split(",")[4])]
         pt_array.append(pt)
 
     pt_array = np.array(pt_array)
@@ -217,7 +257,9 @@ def generate_data(path):
 
 
 def swiss_roll():
-    points, coords = datasets.make_swiss_roll(n_samples=1500, noise=1.0, random_state=None)
+    points, coords = datasets.make_swiss_roll(
+        n_samples=1500, noise=1.0, random_state=None
+    )
     points = points[:, [0, 2]]
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -230,39 +272,50 @@ def swiss_roll():
 def crossing_lines():
     samples = 500
 
-    noises = np.random.normal(0, .02, size=[4, samples])
+    noises = np.random.normal(0, 0.02, size=[4, samples])
 
-    line_1 = [[t / samples + noises[0, t], t / samples + noises[1, t]] for t in range(samples)]
-    line_2 = [[t / samples + noises[2, t] + .55, 1 - t / samples + noises[3, t] + .55] for t in range(samples)]
+    line_1 = [
+        [t / samples + noises[0, t], t / samples + noises[1, t]] for t in range(samples)
+    ]
+    line_2 = [
+        [t / samples + noises[2, t] + 0.55, 1 - t / samples + noises[3, t] + 0.55]
+        for t in range(samples)
+    ]
     return np.array(line_1 + line_2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # read data
-    dataset = np.array(import_test())
+    real_dataset = np.array(crossing_lines())
 
     # Test: eps = 2, minpts = 10 or 12
 
-    # epsilons = [4, 6]
-    #
-    # minpts_list = [6, 10, 14]
-    #
-    # thresholds = [.1, .2]
+    # epsilons = [.02 + 0.02 * i for i in range(10)]
+
+    # minpts_list = [2 ** (i + 2) for i in range(6)]
+
+    epsilons = 2 * [.08]
+    minpts_list = [8]
+
+    thresholds = [0]
     # [(4, 6, 0.1), (4, 10, 0.1), (4, 14, 0.2), (6, 6, 0.2),
     # (6, 10, 0.1), (6, 10, 0.2), (6, 10, 0.4), (6, 14, 0.1), (6, 14, 0.2)]
 
-    epsilons = [6]
+    # epsilons = [6]
 
-    minpts_list = [50]
+    # minpts_list = [50]
 
-    thresholds = [.95]
+    # thresholds = [.95]
 
-    ecc = lambda x: np.sqrt(1 - (x.b ** 2) / (x.a ** 2))
+    ecc = lambda x: np.sqrt(1 - (x.b**2) / (x.a**2))
+    ind_list = [i for i in range(real_dataset.shape[0])]
 
     # ADCN method with dataset, eps and minpts
-    for eps in epsilons:
-        for minpts in minpts_list:
+    for minpts in minpts_list:
+        for eps in epsilons:
             for threshold in thresholds:
+                ind_list = ind_list[500:] + ind_list[:500]
+                dataset = real_dataset[ind_list]
                 typelist = adcn(dataset, eps, minpts, threshold)
 
                 sizes = Counter(typelist).most_common()
@@ -276,8 +329,12 @@ if __name__ == '__main__':
                 #
                 #     eccentricities.append((cat, ecc), eps)
 
-                plt.scatter(dataset[:, 0], dataset[:, 1], c=typelist, marker='.')
+                plt.scatter(dataset[:, 0], dataset[:, 1], c=typelist, marker=".")
+                plt.title("eps: " + str(eps) + ", minpts: " + str(minpts))
                 plt.show()
+
+
+                
 
                 # while len(eccentricities)>0:
                 #     cat = np.argmax([])
