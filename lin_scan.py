@@ -1,18 +1,10 @@
-import os
-
 import numpy as np
-import matplotlib.pyplot as plt
-import random
-import math
 from scipy.spatial import KDTree
-from sklearn.neighbors import BallTree
+
 # from scipy.linalg import sqrtm as sqrtm
-import sklearn.neighbors as neighbors
-from scipy.spatial.distance import jensenshannon
 
 from sklearn.cluster import OPTICS
 
-from import_coordinates import import_test, import_hs
 import ctypes
 
 
@@ -42,10 +34,14 @@ def gen_kl_dist(eps):
         if np.linalg.norm(p1 - p2) > eps:
             return np.inf
 
-        dist = 1 / 2 * np.linalg.norm(inv_sqrt2 @ cov1 @ inv_sqrt2 - np.eye(2), ord='fro') \
-               + 1 / 2 * np.linalg.norm(inv_sqrt1 @ cov2 @ inv_sqrt1 - np.eye(2), ord='fro') \
-               + 1 / np.sqrt(2) * np.sqrt((p1 - p2).transpose() @ inv1 @ (p1 - p2)) \
-               + 1 / np.sqrt(2) * np.sqrt((p1 - p2).transpose() @ inv2 @ (p1 - p2))
+        dist = (
+            1 / 2 * np.linalg.norm(inv_sqrt2 @ cov1 @ inv_sqrt2 - np.eye(2), ord="fro")
+            + 1
+            / 2
+            * np.linalg.norm(inv_sqrt1 @ cov2 @ inv_sqrt1 - np.eye(2), ord="fro")
+            + 1 / np.sqrt(2) * np.sqrt((p1 - p2).transpose() @ inv1 @ (p1 - p2))
+            + 1 / np.sqrt(2) * np.sqrt((p1 - p2).transpose() @ inv2 @ (p1 - p2))
+        )
 
         return np.max([dist, 0])
 
@@ -56,14 +52,14 @@ def gen_c_kl_dist(eps):
     array = ctypes.c_double * 11
     convert = lambda A, B: (array(*A.tolist()), array(*B.tolist()))
 
-    kl_dist = ctypes.CDLL('./linscan_c.so').kl_dist
+    kl_dist = ctypes.CDLL("./linscan_c.so").kl_dist
     kl_dist.restype = ctypes.c_double
 
     dist_func = lambda x, y: kl_dist(*convert(x, y))
     return dist_func
 
 
-def kl_embed_scan(dataset, eps, min_pts, ecc_pts, xi=.05):
+def kl_embed_scan(dataset, eps, min_pts, ecc_pts, xi=0.05):
     kd = KDTree(dataset)
 
     embeddings = []
@@ -72,15 +68,24 @@ def kl_embed_scan(dataset, eps, min_pts, ecc_pts, xi=.05):
         cov = np.cov(np.array([dataset[k] for k in cluster]), rowvar=False)
         cov /= max(np.linalg.eig(cov)[0])
         mean = np.mean(np.array([dataset[k] for k in cluster]), axis=0)
-        inv = 1 / (cov[0, 0] * cov[1, 1] - cov[0, 1] * cov[0, 1]) * \
-              np.array([[cov[1, 1], -cov[0, 1]], [-cov[0, 1], cov[0, 0]]])
+        inv = (
+            1
+            / (cov[0, 0] * cov[1, 1] - cov[0, 1] * cov[0, 1])
+            * np.array([[cov[1, 1], -cov[0, 1]], [-cov[0, 1], cov[0, 0]]])
+        )
         inv_sqrt = sqrtm(inv)
 
-        embeddings.append(np.concatenate([mean, pack_mat(cov), pack_mat(inv), pack_mat(inv_sqrt)]))
+        embeddings.append(
+            np.concatenate([mean, pack_mat(cov), pack_mat(inv), pack_mat(inv_sqrt)])
+        )
     embeddings = np.array(embeddings)
 
-    return OPTICS(min_samples=min_pts, metric=gen_c_kl_dist(np.sqrt(2) * eps), cluster_method="xi", xi=xi).fit(
-        embeddings)
+    return OPTICS(
+        min_samples=min_pts,
+        metric=gen_c_kl_dist(np.sqrt(2) * eps),
+        cluster_method="xi",
+        xi=xi,
+    ).fit(embeddings)
 
 
 def linscan(dataset, eps, min_pts, ecc_pts, threshold, xi):
@@ -95,7 +100,9 @@ def linscan(dataset, eps, min_pts, ecc_pts, threshold, xi):
     typelist = optics.labels_
 
     for cat in range(max(typelist)):
-        temp = np.array([dataset[i, :] for i in range(len(dataset)) if typelist[i] == cat])
+        temp = np.array(
+            [dataset[i, :] for i in range(len(dataset)) if typelist[i] == cat]
+        )
         if temp.size == 0:
             continue
         eigenvalues, eigenvectors = np.linalg.eig(np.cov(temp, rowvar=False))
